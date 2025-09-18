@@ -1,0 +1,130 @@
+#!/usr/bin/env python3
+"""
+Test setup script to verify:
+--> Python version
+--> All required dependencies
+--> Connection to Ollama and available models
+"""
+
+# import necessary libraries
+import sys
+import importlib
+import requests
+from typing import List, Tuple
+
+
+# Test if all required Python packages can be imported
+def test_imports() -> List[Tuple[str, bool, str]]:
+    """Test if all required packages can be imported"""
+    packages = [
+        ('streamlit', 'streamlit'),
+        ('pandas', 'pandas'),
+        ('PyPDF2', 'PyPDF2'),
+        ('requests', 'requests'),
+        ('numpy', 'numpy'),
+        ('openpyxl', 'openpyxl'),
+        ('plotly', 'plotly'),
+    ]
+    
+    results = []
+    for display_name, import_name in packages:
+        try:
+            importlib.import_module(import_name)
+            results.append((display_name, True, "✅ Installed"))
+        except ImportError as e:
+            results.append((display_name, False, f"❌ Missing: {str(e)}"))
+    
+    return results    # Returns list of (package name, success flag, message)
+
+
+# Test connection to Ollama server
+def test_ollama_connection() -> Tuple[bool, str, List[str]]:
+    """Test connection to Ollama and get available models"""
+    try:
+        response = requests.get("http://localhost:11434/api/tags", timeout=5)    # Send request to localhost:11434
+        if response.status_code == 200:
+            models_data = response.json()
+            models = [model['name'] for model in models_data.get('models', [])]
+            return True, "✅ Connected", models    # Returns status and list of available models
+        else:
+            return False, f"❌ HTTP {response.status_code}", []    
+    except requests.exceptions.ConnectionError:
+        return False, "❌ Connection refused - Ollama not running?", []
+    except requests.exceptions.Timeout:
+        return False, "❌ Connection timeout", []
+    except Exception as e:
+        return False, f"❌ Error: {str(e)}", []
+
+
+# Main function
+# Runs all tests and prints results step by step
+def main():
+    """Main test function"""
+    print("🔍 Financial Document Q&A Assistant - Setup Test")
+    print("=" * 50)
+    
+    # Test Python version
+    print(f"Python Version: {sys.version}")
+    if sys.version_info < (3, 8):
+        print("⚠️  Warning: Python 3.8 or higher is recommended")
+    else:
+        print("✅ Python version OK")
+    print()
+    
+    # Test imports
+    print("📦 Testing Package Imports:")
+    print("-" * 30)
+    import_results = test_imports()
+    all_imports_ok = True
+    
+    for package, success, message in import_results:
+        print(f"{package:12} {message}")
+        if not success:
+            all_imports_ok = False
+    
+    if not all_imports_ok:
+        print("\n❌ Some packages are missing. Install them with:")
+        print("pip install -r requirements.txt")
+        return False
+    
+    print("\n✅ All packages installed successfully!")
+    print()
+    
+    # Test Ollama connection
+    print("🤖 Testing Ollama Connection:")
+    print("-" * 30)
+    connected, message, models = test_ollama_connection()
+    print(f"Status: {message}")
+    
+    if connected:
+        if models:
+            print(f"Available models ({len(models)}):")
+            for model in models:
+                print(f"  • {model}")
+        else:
+            print("⚠️  No models found. Download a model with:")
+            print("ollama pull llama3.2")
+    else:
+        print("\n❌ Ollama connection failed!")
+        print("Make sure Ollama is installed and running:")
+        print("1. Install Ollama from https://ollama.ai")
+        print("2. Run: ollama serve")
+        print("3. Download a model: ollama pull llama3.2")
+        return False
+    
+    print()
+    print("🎉 Setup test completed!")
+    
+    # Final check
+    if all_imports_ok and connected and models:
+        print("✅ Everything looks good! You can run the application with:")
+        print("streamlit run app.py")
+        return True
+    else:
+        print("⚠️  Please fix the issues above before running the application.")
+        return False
+
+
+if __name__ == "__main__":
+    success = main()
+    sys.exit(0 if success else 1)
